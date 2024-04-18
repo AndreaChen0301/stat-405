@@ -1,0 +1,50 @@
+---
+title: "hw4"
+author: "Yahan Chen [chen2254@wisc.edu]"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require("FITSio")
+library(dplyr)
+library(ggplot2)
+library(readr)
+library(tidyverse)
+```
+
+To search the spectrum that matches with CB58, the initial thought is to find the slope of vectors between two spectra and compare whether 1. they have the same sign (positive or negative), 2. similar slope value. This approach, however, is hard to capture the shifts. Then, I Googled something more advance to capture the noise and shifts at the same time, which is smooth function and cross-correlation. When I try to implement this method into the spectrum data, I found it's hard to understand the knowledge behind. Moreover, it fails to find spec-...0579 as the matching spectrum.
+
+After trying other methods posted in the Discussion and the homework handout, I decide to calculate the Euclidean Distance between two vectors (search spectrum and target spectrum) to determine which one is the match since it is the most intuitive method and is easy to find shifts. The standardization of the y-coordinates ensures the alignment and normalized the potential outlier.
+
+There's difficulty in the way as I try to use `ivar` to select the best continuous slice of `flux` where its sum of `ivar` is largest (`lux[i]` with small variance). The best slice from this method that match with the number of points of cB58 fails to give me the correct matching spectra. After exploring the plot, distance, and `ivar` using the example given in the handout, I eventually found the correct way to slice the best alignment; that is, after filtering the good observations with `and_mask`, find the best slice that give the minimum distance between the matching spectrum and targeted spectrum. This slice will be the best alignment with the shortest distance, and also allows me to record the start of the best slice, which is the shift.
+
+This hw4 is really hard in every steps.
+
+
+```{r}
+spectrum = read_csv("hw4best100.csv", show_col_types = FALSE) %>%
+  head(10)
+```
+
+## Top 10 Matching Spectra
+
+```{r}
+cB58 = readFrameFromFITS("/home/groups/STAT_DSCP/boss/cB58_Lyman_break.fit")$FLUX
+```
+
+```{r}
+n_cB58 = length(cB58)
+
+for (idx in 1:10) {
+  index = spectrum$spectrumID[idx]
+  noisyi = readFrameFromFITS(paste("graph", index, sep = "/"))$flux
+  n_noisyi = length(noisyi)
+  
+  shift = spectrum$i[idx]
+  plot(x=1:n_noisyi, y=(noisyi - mean(noisyi)) / sd(noisyi), type='l', col='blue',
+       xlab = "Shifted Wavelength", ylab = "Flux", ylim = c(0,100), main="Spectra Alignment")
+  lines(x=shift+(1:n_cB58), y=(cB58 - mean(cB58)) / sd(cB58), type='l', col='red')
+  legend("topright", legend = c(index, "cB58"), col = c("blue", "red"), lty = 1)
+}
+```
