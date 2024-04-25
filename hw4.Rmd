@@ -1,0 +1,54 @@
+---
+title: "hw4"
+author: "Yahan Chen [chen2254@wisc.edu]"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require("FITSio")
+library(dplyr)
+library(ggplot2)
+library(readr)
+library(tidyverse)
+```
+
+The challenge of HW4 is not really about the shell script command or the R code, but about understanding the fundamentals of CHTC. At the beginnign, I'm confused about 1. Where are the .tgz files 2. Where are the untared tgz files and how do I read them with my R script. The arguments and queue file from a file list are new to me that I was having a hard time understanding the functionality. Referencing the variables differently back and forth in R, shell scripts and submission file is the biggest challenge.
+
+After I figured out this part, the codes and algorithms to find the best fits can be relatively easy.
+
+
+```{r}
+spectrum = read_csv("hw4best100.csv", show_col_types = FALSE) %>%
+  head(10)
+```
+
+## Top 10 Matching Spectra
+
+```{r}
+cB58 = readFrameFromFITS("/home/groups/STAT_DSCP/boss/cB58_Lyman_break.fit")$FLUX
+```
+
+
+```{r}
+n_cB58 = length(cB58)
+
+for (idx in 1:10) {
+  index = spectrum$spectrumID[idx]
+  noisyi = readFrameFromFITS(paste("graph", index, sep = "/"))$flux
+  n_noisyi = length(noisyi)
+  
+  normalized_cB58 = (cB58 - mean(cB58)) / sd(cB58)
+  normalized_noisyi = (noisyi - mean(noisyi)) / sd(noisyi)
+
+  range_cB58 = range(normalized_cB58)
+  scale_factor = (range_cB58[2] - range_cB58[1]) / (max(normalized_noisyi) - min(normalized_noisyi))
+  scaled_noisyi = normalized_noisyi * scale_factor
+
+  shift = spectrum$i[idx]
+  plot(x=shift+(1:n_cB58), y=normalized_cB58, type='l', col='red',
+       xlab = "Shifted Wavelength", ylab = "Flux", ylim = range(range_cB58), main="Spectra Alignment")
+  lines(x=1:n_noisyi, y=scaled_noisyi, type='l', col='blue')
+  legend("topright", legend = c(index, "cB58"), col = c("blue", "red"), lty = 1)
+}
+```
